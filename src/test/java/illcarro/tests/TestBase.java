@@ -1,6 +1,7 @@
 package illcarro.tests;
 
 import io.restassured.RestAssured;
+import io.restassured.parsing.Parser;
 import org.testng.annotations.BeforeMethod;
 
 public class TestBase {
@@ -13,5 +14,6 @@ public class TestBase {
     public void init() {
         RestAssured.baseURI = "https://ilcarro-backend.herokuapp.com";
         RestAssured.basePath = "v1";
+        RestAssured.defaultParser = Parser.JSON;
     }
 }

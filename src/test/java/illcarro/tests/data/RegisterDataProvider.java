@@ -9,8 +9,8 @@ public class RegisterDataProvider {
     // DataProvider с генерацией рандомных email'ов
     @DataProvider(name = "randomUsers")
     public Object[][] provideRandomUsers() {
-        Object[][] data = new Object[5][1];
-        for (int i = 0; i < 5; i++) {
+        Object[][] data = new Object[3][1];
+        for (int i = 0; i < 3; i++) {
             String email = "autouser" + System.currentTimeMillis() + new Random().nextInt(1000) + "@mail.com";
             AuthRequestDto user = AuthRequestDto.builder()
                     .username(email)

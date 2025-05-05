@@ -1,25 +1,23 @@
 package illcarro.tests;
 
-import com.google.gson.Gson;
 import illcaro.dto.AuthRequestDto;
+import illcaro.dto.AuthResponseDto;
+import illcaro.dto.ErrorDto;
 import illcarro.tests.data.RegisterDataProvider;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
+import org.testng.Assert;
 import org.testng.annotations.Test;
-
 import static io.restassured.RestAssured.*;
-import static org.hamcrest.Matchers.notNullValue;
 
 public class RegistrationTests extends TestBase {
-    private final Gson gson = new Gson();
-
-    //  Тест 1: Печать JSON-ответа в виде строки
+    // Успешная регистрация с выводом токена
     @Test
     public void printRegistration1() {
-        String randomEmail = "user" + System.currentTimeMillis() + "@gmail.com";
+        String email = "user" + System.currentTimeMillis() + "@gmail.com";
 
         AuthRequestDto user = AuthRequestDto.builder()
-                .username(randomEmail)
+                .username(email)
                 .password("Password@3")
                 .firstName("Irina")
                 .lastName("Tishman")
@@ -30,24 +28,24 @@ public class RegistrationTests extends TestBase {
                 .body(user)
                 .post("/user/registration/usernamepassword")
                 .then()
-                .statusCode(200)
                 .extract().response();
 
-        System.out.println("===== printRegistration1 =====");
-        System.out.println("Status Code: " + response.statusCode());
-        System.out.println("Email: " + randomEmail);
-        System.out.println("JSON: " + response.asString());
-        System.out.println("=================================");
+        Assert.assertEquals(response.statusCode(), 200);
+        AuthResponseDto auth = response.as(AuthResponseDto.class);
+        Assert.assertNotNull(auth.getToken());
+
+        System.out.println(" User registered: " + email);
+        System.out.println(" Token: " + auth.getToken());
     }
 
-    //  Тест 2: Печать форматированного JSON-ответа
+    // Повтор регистрации с другими данными
     @Test
     public void printRegistration2() {
-        String randomEmail = "user" + System.currentTimeMillis() + "@gmail.com";
+        String email = "user" + System.currentTimeMillis() + "@gmail.com";
 
         AuthRequestDto user = AuthRequestDto.builder()
-                .username(randomEmail)
-                .password("Passwor5d@2")
+                .username(email)
+                .password("Password@2")
                 .firstName("Print")
                 .lastName("Test")
                 .build();
@@ -57,16 +55,17 @@ public class RegistrationTests extends TestBase {
                 .body(user)
                 .post("/user/registration/usernamepassword")
                 .then()
-                .statusCode(200)
                 .extract().response();
 
-        System.out.println("===== printRegistration2 =====");
-        System.out.println("Status Code: " + response.statusCode());
-        System.out.println("Email: " + randomEmail);
-        response.prettyPrint();
-        System.out.println("=================================");
+        Assert.assertEquals(response.statusCode(), 200);
+        AuthResponseDto auth = response.as(AuthResponseDto.class);
+        Assert.assertNotNull(auth.getToken());
+
+        System.out.println(" Registered: " + email);
+        System.out.println(" Token: " + auth.getToken());
     }
 
+    // Параметризованный тест с рандомными пользователями
     @Test(dataProvider = "randomUsers", dataProviderClass = RegisterDataProvider.class)
     public void registerRandomUser(AuthRequestDto user) {
         Response response = given()
@@ -74,23 +73,42 @@ public class RegistrationTests extends TestBase {
                 .body(user)
                 .post("/user/registration/usernamepassword")
                 .then()
-                .statusCode(200)
-                .body("accessToken", notNullValue())
                 .extract().response();
 
-        // Вывод нужной информации
-        System.out.println("********************************");
-        System.out.println("Status Code: " + response.getStatusCode());
-        System.out.println("accessToken: " + response.jsonPath().getString("accessToken"));
-        System.out.println("********************************");
-        System.out.println("RAW Java object: " + user);
-        System.out.println("********************************");
-        System.out.println("JSON response: " + response.asString());
-        System.out.println("********************************");
-        System.out.println("Parsed JSON via GSON:");
-        System.out.println(gson.toJson(user));
-        System.out.println("********************************");
-        System.out.printf("Name: %s\nEmail: %s\nPassword: %s\n---------------\n",
-                user.getFirstName(), user.getUsername(), user.getPassword());
+        Assert.assertEquals(response.statusCode(), 200);
+        AuthResponseDto auth = response.as(AuthResponseDto.class);
+        Assert.assertNotNull(auth.getToken());
+
+        System.out.printf(" Registered: %s | Name: %s %s | Token: %s\n",
+                user.getUsername(), user.getFirstName(), user.getLastName(), auth.getToken());
+    }
+
+    // (дополнительно, по желанию) тест с невалидными данными
+    @Test()
+    public void registrationWithInvalidDataShouldFail() {
+        AuthRequestDto user = AuthRequestDto.builder()
+                .username("invalid") // неправильный email
+                .password("123")
+                .firstName("")
+                .lastName("")
+                .build();
+
+        Response response = given()
+                .contentType(ContentType.JSON)
+                .body(user)
+                .post("/user/registration/usernamepassword")
+                .then()
+                .extract().response();
+
+        Assert.assertEquals(response.statusCode(), 400);
+
+        String body = response.getBody().asString();
+        if (!body.isBlank() && body.trim().startsWith("{")) {
+            ErrorDto error = response.as(ErrorDto.class);
+            Assert.assertEquals(error.getStatus(), 400);
+            Assert.assertTrue(error.getMessage().toString().contains("username"));
+        } else {
+            Assert.fail("Expected JSON error body but got something else");
+        }
     }
 }
